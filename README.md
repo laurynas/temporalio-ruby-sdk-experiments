@@ -24,7 +24,7 @@ http://localhost:28080
 
 ### v0.5.0
 
-You use docker compose override to run script with v0.5.0 SDK, which doesn't experience the issue.
+You can use docker compose override to run script with v0.5.0 SDK, which doesn't experience the issue.
 
 ```shell
 docker compose down

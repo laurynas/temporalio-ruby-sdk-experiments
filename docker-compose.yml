@@ -1,0 +1,53 @@
+services:
+  mysql:
+    platform: linux/arm64/v8
+    image: mysql:8.0.42
+    environment:
+      - MYSQL_ROOT_PASSWORD=test
+
+  # https://github.com/temporalio/docker-compose
+  temporal:
+    depends_on:
+      - mysql
+    environment:
+      - DB=mysql8
+      - DB_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PWD=test
+      - MYSQL_SEEDS=mysql
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+    image: temporalio/auto-setup:1.28
+    ports:
+      - 127.0.0.1:27233:7233
+    volumes:
+      - ./temporal/dynamicconfig:/etc/temporal/config/dynamicconfig
+    labels:
+      kompose.volume.type: configMap
+    healthcheck:
+      test: ["CMD", "tctl", "--address", "temporal:7233", "workflow", "list"]
+      interval: 1s
+      timeout: 5s
+      retries: 30
+
+  temporal-ui:
+    depends_on:
+      - temporal
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=http://localhost:3000
+    image: temporalio/ui:2.39.0
+    ports:
+      - 127.0.0.1:28080:8080
+
+  worker:
+    depends_on:
+      temporal:
+        condition: service_healthy
+    build:
+      dockerfile: Dockerfile
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_SDK_VERSION=0.6.0
+    volumes:
+      - ./temporalio_worker:/usr/local/bin/temporalio_worker
+    command: ["temporalio_worker"]

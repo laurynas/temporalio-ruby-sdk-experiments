@@ -1,0 +1,60 @@
+#!/usr/bin/env ruby
+
+TEMPORAL_SDK_VERSION = ENV.fetch('TEMPORAL_SDK_VERSION', '0.5.0')
+ADDRESS = ENV.fetch('TEMPORAL_ADDRESS', 'localhost:27233')
+NAMESPACE = 'default'
+TASK_QUEUE = 'default'
+
+puts "TEMPORAL_SDK_VERSION: #{TEMPORAL_SDK_VERSION}"
+
+gem 'temporalio', TEMPORAL_SDK_VERSION
+
+require 'temporalio/worker'
+
+class HelloWorldActivity < Temporalio::Activity::Definition
+  def execute(name)
+    "Hello #{name}"
+  end
+end
+
+class HelloWorldWorkflow < Temporalio::Workflow::Definition
+  def execute(name = 'Alice')
+    Temporalio::Workflow.execute_activity(
+      HelloWorldActivity,
+      name,
+      start_to_close_timeout: 30.0,
+    )
+  end
+end
+
+class HeavyWorkflow < Temporalio::Workflow::Definition
+  def execute(iterations = 1000)
+    futures = iterations.times.map do
+      Temporalio::Workflow::Future.new do
+        Temporalio::Workflow.execute_child_workflow(HelloWorldWorkflow)
+      end
+    end
+
+    Temporalio::Workflow::Future.all_of(*futures).wait
+
+    true
+  end
+end
+
+client = Temporalio::Client.connect(ADDRESS, NAMESPACE)
+
+puts '* starting heavy workflow'
+client.start_workflow(
+  HeavyWorkflow,
+  id: 'heavy-workflow',
+  task_queue: TASK_QUEUE,
+)
+
+puts '* starting worker'
+worker = Temporalio::Worker.new(
+  client: client,
+  task_queue: TASK_QUEUE,
+  workflows: [HelloWorldWorkflow, HeavyWorkflow],
+  activities: [HelloWorldActivity],
+)
+worker.run

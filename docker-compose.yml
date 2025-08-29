@@ -1,6 +1,6 @@
 services:
   mysql:
-    platform: linux/arm64/v8
+    # platform: linux/arm64/v8
     image: mysql:8.0.42
     environment:
       - MYSQL_ROOT_PASSWORD=test
@@ -27,7 +27,7 @@ services:
       test: ["CMD", "tctl", "--address", "temporal:7233", "workflow", "list"]
       interval: 1s
       timeout: 5s
-      retries: 30
+      retries: 120
 
   temporal-ui:
     depends_on:

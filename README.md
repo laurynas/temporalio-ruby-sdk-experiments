@@ -1,4 +1,4 @@
-# Temporaio Ruby SDK Experiments
+# Temporalio Ruby SDK Experiments
 
 ## Potential deadlock issue with v0.6.0
 
